@@ -25,7 +25,7 @@ Pressing **Play** in Battle.net starts `WowB-ARM64.exe` in this container. Most 
 - The client lives at **`C:\Program Files (x86)\World of Warcraft`**, where Agent is allowed to update it and `CreateProcess` it. A `Data/` copy on `G:` is not an install Agent will launch.
 - Wine is **ARM64EC**. Battle.net is x86, so FEXCore runs it. Play then starts the native ARM64 client, and that client gets the container's aarch64 DXVK and Turnip driver. Stock Proton's DXVK libraries are the wrong machine type for a pure ARM64 exe, which is the "game initialization failed" / bad `dxgi.dll` path.
 
-`Launch-WoW-Direct.bat` is still the shorter boot. `Launch-BattleNet.bat` is how the client gets updated, and how Play was confirmed.
+`Launch-WoW-Direct.bat` is the shorter boot. `Launch-BattleNet.bat` is how the client gets updated, and how Play was confirmed. On 12 October 2026 the card's executable was `Launch-BattleNet-only.bat`, which does the same thing as `scripts/Launch-BattleNet.bat`: start `G:\Battle.net\Battle.net Launcher.exe` and nothing else.
 
 On this prefix Battle.net sees ARM64 Windows, so it installs the native ARM64 client when Blizzard ships one (`WowB-ARM64.exe` for Forever, `Wow-ARM64.exe` / `WowClassic-arm64.exe` for the other products). Forever is the client that reached the world. The x64 clients stop in the loader under FEX.
 
@@ -33,32 +33,43 @@ GameNative holds the screen, so an authenticator app on the phone cannot be open
 
 ## GameNative settings
 
-GameNative **1.2.1**. One library card, **WoW Forever Beta**. These are the settings that were on the container when Ironforge loaded and when Battle.net's Play button started the game.
+GameNative **1.2.1**. One library card, **WoW Forever Beta**. `gamenative/WoW-Forever-Beta.config.json` is the container export taken from the phone on 12 October 2026, after Ironforge and after Battle.net's Play button had started the game.
 
 | Tab | Setting | Value |
 |---|---|---|
 | General | Container variant | bionic |
 | General | Wine version | `proton-11.0-90624-arm64ec-1` |
-| General | Executable | `Launch-WoW-Direct.bat` or `Launch-BattleNet.bat` |
+| General | Executable | `Launch-BattleNet-only.bat` (same launch as `scripts/Launch-BattleNet.bat`) |
+| General | Exec arguments | `-d3d11` |
 | General | Screen size | **1344×608** (Custom). Half of the RedMagic 11 Pro panel (2688×1216). **1280×720** also worked. **1920×1080** brings the pipeline assert back. |
 | Drives | `G:` | `/storage/emulated/0/GameNative` |
+| Drives | `A:` | `/storage/emulated/0/GameNative/WoW Forever Beta` |
+| Drives | `D:` | `/storage/emulated/0/Download` |
+| Drives | `E:` | `/data/data/app.gamenative/storage` |
 | Graphics | Graphics driver | Wrapper |
 | Graphics | Graphics driver version | **Turnip-V32-RP6sched** |
-| Graphics | Use Adrenotools Turnip | on |
 | Graphics | Display renderer | Vulkan |
+| Graphics | Driver present mode | mailbox |
 | Graphics | DX wrapper | DXVK |
 | Graphics | DXVK version | `2.4.1-wow-aarch64-test-1` |
-| Graphics | Present mode | mailbox |
-| Emulation | FEXCore | **2609-0** for 32-bit and 64-bit |
-| Emulation | WINEESYNC | off |
-| Environment | `TU_DEBUG` | `noconform,sysmem` |
-| Environment | `MESA_VK_WSI_PRESENT_MODE` | `mailbox` |
+| Emulation | Emulator | FEXCore, preset **PERFORMANCE** |
+| Emulation | FEXCore version | **2608-0** |
+| Emulation | WINEESYNC | off (`WINEESYNC=0`) |
+| Emulation | CPU list | `0,1,2,3,4,5,6,7` (WoW64 list `4,5,6,7`) |
 
-`sysmem` matters on Adreno 8xx: GMEM is glitchy there. whitebelyash's A8xx notes call that out.
+The RP6 bundle text says FEXCore **2609-0**. The exported container says **2608-0**. The wine log from this phone loads `libwow64fex.dll` and then `G:\Battle.net\Battle.net Launcher.exe`.
 
-A donor `Config.wtf` in `_classic_beta_/WTF/` with **graphicsQuality / raidGraphicsQuality = 1**, `gxApi D3D11`, and the screen-narrator and photosensitivity flags off avoided the Screen Narrator `ASSERTSAFE` crash on first boot. That file is not in this repo.
+`sysmem` matters on Adreno 8xx: GMEM is glitchy there. whitebelyash's A8xx notes call that out. The export's separate `rendererPresentMode` field is `fifo`. The Vulkan present path in use is mailbox, both in `graphicsDriverConfig` (`presentMode=mailbox`) and in `MESA_VK_WSI_PRESENT_MODE`.
 
-While the picture was being debugged, `DXVK_LOG_LEVEL`, `DXVK_LOG_PATH`, and `MESA_LOG_FILE` were added on the Environment tab. They are not part of the launch. The phone was not attached when this note was written, so a live container export was not taken.
+Environment string from the export:
+
+```text
+WRAPPER_MAX_IMAGE_COUNT=0 ZINK_DESCRIPTORS=lazy ZINK_DEBUG=compact,deck_emu MESA_SHADER_CACHE_DISABLE=true MESA_SHADER_CACHE_MAX_SIZE=512MB mesa_glthread=true WINEESYNC=0 MESA_VK_WSI_PRESENT_MODE=mailbox TU_DEBUG=noconform,sysmem VKD3D_SHADER_MODEL=6_0 PULSE_LATENCY_MSEC=144
+```
+
+`DXVK_LOG_LEVEL`, `DXVK_LOG_PATH`, and `MESA_LOG_FILE` are not set.
+
+A donor `Config.wtf` in `_classic_beta_/WTF/` with **graphicsQuality / raidGraphicsQuality = 1**, `gxApi D3D11`, and the screen-narrator and photosensitivity flags off avoided the Screen Narrator `ASSERTSAFE` crash on first boot. That file lives inside the Wine prefix on `C:` and is not in this repo.
 
 ## What is in this repo
 
@@ -70,8 +81,11 @@ While the picture was being debugged, `DXVK_LOG_LEVEL`, `DXVK_LOG_PATH`, and `ME
 | `patches/vulkan-android-icd-exports.patch` | `vk_icd*` exports only |
 | `scripts/Launch-WoW-Direct.bat` | Starts `WowB-ARM64.exe -d3d11` from `C:` |
 | `scripts/Launch-BattleNet.bat` | Starts `G:\Battle.net\Battle.net Launcher.exe` |
+| `gamenative/WoW-Forever-Beta.config.json` | Container export from the phone, 12 October 2026 |
 
 Not in this repo, and required on the phone: GameNative itself, the RP6 **Proton** and **DXVK** `.wcp` packages, the Battle.net install, and the WoW client. The Proton and DXVK packages come from the RP6 all-in-one bundle (25 September 2026).
+
+The shortcut folder on the phone still has two older scripts besides `Launch-BattleNet-only.bat`. `Launch-BattleNet.bat` there is the one-time copy onto `C:` (it finished on 26 September: `wow-c-copy-done.txt` says `REAL_MOVE_OK`). `Launch-WoW-Direct.bat` there can still make a junction back to `G:\World of Warcraft` if the `C:` copy marker is missing. The copies in `scripts/` do not do that. `Launch.bat` is the `choice` menu and is not the card's executable.
 
 ## Driver
 
