@@ -85,7 +85,7 @@ A donor `Config.wtf` in `_classic_beta_/WTF/` with **graphicsQuality / raidGraph
 
 Not in this repo, and required on the phone: GameNative itself, the RP6 **Proton** and **DXVK** `.wcp` packages, the Battle.net install, and the WoW client. The Proton and DXVK packages come from the RP6 all-in-one bundle (25 September 2026).
 
-The shortcut folder on the phone still has two older scripts besides `Launch-BattleNet-only.bat`. `Launch-BattleNet.bat` there is the one-time copy onto `C:` (it finished on 26 September: `wow-c-copy-done.txt` says `REAL_MOVE_OK`). `Launch-WoW-Direct.bat` there can still make a junction back to `G:\World of Warcraft` if the `C:` copy marker is missing. The copies in `scripts/` do not do that. `Launch.bat` is the `choice` menu and is not the card's executable.
+On 12 October 2026 the phone shortcut folder was reduced to the card executable `Launch-BattleNet-only.bat` and `Launch-WoW-Direct.bat`. The direct script matches `scripts/Launch-WoW-Direct.bat`. The one-time copy script, the `choice` menu `Launch.bat`, the copy log, and the separate **Battle.net Update** card folder were removed. Failed Turnip ZIPs were removed from `Download/WoW-Forever-bundle`. Proton, DXVK, and `turnip-V32-RP6sched.zip` are still in that folder.
 
 ## Driver
 
