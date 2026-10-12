@@ -17,6 +17,62 @@ Leave the separate Battle.net library card unused. That other prefix is what pro
 
 The game install is **`C:\Program Files (x86)\World of Warcraft`** inside the Forever container, not on `G:`. Agent will not update a `G:` copy or a junction onto sdcard. `G:\Battle.net` is only the launcher. `G:` is `/storage/emulated/0/GameNative`.
 
+## Launching from Battle.net
+
+Pressing **Play** in Battle.net starts `WowB-ARM64.exe` in this container. Most GameNative writeups skip the launcher and start that exe directly, because Play usually dies. It works here for three reasons:
+
+- The launcher and the game share **one** container. A second Battle.net card cannot see the install (`BLZEBNTAGT0000084B`).
+- The client lives at **`C:\Program Files (x86)\World of Warcraft`**, where Agent is allowed to update it and `CreateProcess` it. A `Data/` copy on `G:` is not an install Agent will launch.
+- Wine is **ARM64EC**. Battle.net is x86, so FEXCore runs it. Play then starts the native ARM64 client, and that client gets the container's aarch64 DXVK and Turnip driver. Stock Proton's DXVK libraries are the wrong machine type for a pure ARM64 exe, which is the "game initialization failed" / bad `dxgi.dll` path.
+
+`Launch-WoW-Direct.bat` is still the shorter boot. `Launch-BattleNet.bat` is how the client gets updated, and how Play was confirmed.
+
+On this prefix Battle.net sees ARM64 Windows, so it installs the native ARM64 client when Blizzard ships one (`WowB-ARM64.exe` for Forever, `Wow-ARM64.exe` / `WowClassic-arm64.exe` for the other products). Forever is the client that reached the world. The x64 clients stop in the loader under FEX.
+
+GameNative holds the screen, so an authenticator app on the phone cannot be opened during login. This account had the authenticator removed before the in-container login succeeded.
+
+## GameNative settings
+
+GameNative **1.2.1**. One library card, **WoW Forever Beta**. These are the settings that were on the container when Ironforge loaded and when Battle.net's Play button started the game.
+
+| Tab | Setting | Value |
+|---|---|---|
+| General | Container variant | bionic |
+| General | Wine version | `proton-11.0-90624-arm64ec-1` |
+| General | Executable | `Launch-WoW-Direct.bat` or `Launch-BattleNet.bat` |
+| General | Screen size | **1344×608** (Custom). Half of the RedMagic 11 Pro panel (2688×1216). **1280×720** also worked. **1920×1080** brings the pipeline assert back. |
+| Drives | `G:` | `/storage/emulated/0/GameNative` |
+| Graphics | Graphics driver | Wrapper |
+| Graphics | Graphics driver version | **Turnip-V32-RP6sched** |
+| Graphics | Use Adrenotools Turnip | on |
+| Graphics | Display renderer | Vulkan |
+| Graphics | DX wrapper | DXVK |
+| Graphics | DXVK version | `2.4.1-wow-aarch64-test-1` |
+| Graphics | Present mode | mailbox |
+| Emulation | FEXCore | **2609-0** for 32-bit and 64-bit |
+| Emulation | WINEESYNC | off |
+| Environment | `TU_DEBUG` | `noconform,sysmem` |
+| Environment | `MESA_VK_WSI_PRESENT_MODE` | `mailbox` |
+
+`sysmem` matters on Adreno 8xx: GMEM is glitchy there. whitebelyash's A8xx notes call that out.
+
+A donor `Config.wtf` in `_classic_beta_/WTF/` with **graphicsQuality / raidGraphicsQuality = 1**, `gxApi D3D11`, and the screen-narrator and photosensitivity flags off avoided the Screen Narrator `ASSERTSAFE` crash on first boot. That file is not in this repo.
+
+While the picture was being debugged, `DXVK_LOG_LEVEL`, `DXVK_LOG_PATH`, and `MESA_LOG_FILE` were added on the Environment tab. They are not part of the launch. The phone was not attached when this note was written, so a live container export was not taken.
+
+## What is in this repo
+
+| Path | What it is |
+|---|---|
+| `driver/turnip-V32-RP6sched.zip` | The driver ZIP GameNative imports |
+| `driver/meta.json` | The metadata packed in that ZIP |
+| `patches/limit-barycentric-waits-to-current-block.patch` | RP6 ir3 scheduler skip |
+| `patches/vulkan-android-icd-exports.patch` | `vk_icd*` exports only |
+| `scripts/Launch-WoW-Direct.bat` | Starts `WowB-ARM64.exe -d3d11` from `C:` |
+| `scripts/Launch-BattleNet.bat` | Starts `G:\Battle.net\Battle.net Launcher.exe` |
+
+Not in this repo, and required on the phone: GameNative itself, the RP6 **Proton** and **DXVK** `.wcp` packages, the Battle.net install, and the WoW client. The Proton and DXVK packages come from the RP6 all-in-one bundle (25 September 2026).
+
 ## Driver
 
 **whitebelyash Adreno 8xx Turnip (V32 / `turnip/gen8` @ `9c7e022`) + the RP6 ir3 scheduler barycentric-block skip.**
@@ -105,24 +161,6 @@ ninja -C build-android src/freedreno/vulkan/libvulkan_freedreno.so
 ```
 
 Zip `libvulkan_freedreno.so` next to `driver/meta.json` and import that ZIP.
-
-## Container settings
-
-- Container: **bionic**
-- Wine: **proton-11.0-90624-arm64ec-1**
-- FEXCore: **2609-0**
-- Graphics Driver: **Wrapper**
-- Graphics Driver Version: **Turnip-V32-RP6sched**
-- Use Adrenotools Turnip: **on**
-- Display Renderer: **Vulkan**
-- DX Wrapper: **DXVK**
-- DXVK Version: **2.4.1-wow-aarch64-test-1**
-- WINEESYNC: **off**
-- Screen Size: **1344×608** (GameNative **Custom**). Half of the RedMagic 11 Pro panel (2688×1216). 1280×720 also worked. **1920×1080** brings the pipeline assert back.
-- Present / `MESA_VK_WSI_PRESENT_MODE`: **mailbox**
-- `TU_DEBUG`: **`noconform,sysmem`**
-
-A donor `Config.wtf` with **graphicsQuality / raidGraphicsQuality = 1**, `gxApi D3D11`, and narrator/photosensitivity flags off avoided the Screen Narrator `ASSERTSAFE` crash on first boot.
 
 ## Credits
 
